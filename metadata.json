@@ -1,0 +1,7 @@
+{
+  "name": "Tracker Admin Pro",
+  "description": "Professional admin dashboard for tracking mobile client sessions, real-time location monitoring, and session analytics.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
