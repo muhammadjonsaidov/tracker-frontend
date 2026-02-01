@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { api } from '../services/api';
-import { UserRow, LastLocationRow, SessionRow } from '../types';
 import { Users, Activity, Navigation, Clock, ArrowUpRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import InlineError from '../components/InlineError';
+import { api } from '@/shared/services/api';
+import { LastLocationRow, SessionRow, UserRow } from '@/shared/types';
+import InlineError from '@/shared/components/InlineError';
 
 const startOfDay = (date: Date) => {
   const next = new Date(date);
@@ -189,7 +189,6 @@ const Dashboard: React.FC = () => {
           setAvgDurationS(null);
         }
       } catch (err) {
-        console.error('Dashboard fetch error:', err);
         if (isMounted) setError((err as any)?.message || 'Failed to load dashboard data.');
       } finally {
         if (isMounted) setLoading(false);
@@ -219,7 +218,13 @@ const Dashboard: React.FC = () => {
     { name: 'Avg. Duration', value: formatDuration(avgDurationS), icon: Clock, color: 'bg-orange-500' },
   ];
 
-  if (loading) return <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

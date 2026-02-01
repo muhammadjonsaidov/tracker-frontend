@@ -9,11 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "recharts": "2.15.0",
+    "event-source-polyfill": "^1.0.31",
+    "lucide-react": "0.474.0",
+    "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-router-dom": "7.1.5",
-    "lucide-react": "0.474.0",
-    "react": "19.0.0"
+    "recharts": "2.15.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

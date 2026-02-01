@@ -1,9 +1,8 @@
-
-import React, { useEffect, useState } from 'react';
-import { api } from '../services/api';
-import { UserRow } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Search, MoreVertical, Filter, UserPlus } from 'lucide-react';
-import InlineError from '../components/InlineError';
+import { api } from '@/shared/services/api';
+import { UserRow } from '@/shared/types';
+import InlineError from '@/shared/components/InlineError';
 
 const UsersPage: React.FC = () => {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -16,9 +15,9 @@ const UsersPage: React.FC = () => {
     setLoading(true);
     setError('');
     api.getUsers()
-      .then(res => {
+      .then((res) => {
         if (!isMounted) return;
-        setUsers(res.data);
+        setUsers(res.data || []);
         setLoading(false);
       })
       .catch((err: any) => {
@@ -29,12 +28,24 @@ const UsersPage: React.FC = () => {
     return () => { isMounted = false; };
   }, []);
 
-  const filteredUsers = users.filter(u => 
-    u.username.toLowerCase().includes(search.toLowerCase()) || 
-    u.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredUsers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return users;
+    return users.filter((u) =>
+      u.username.toLowerCase().includes(query) ||
+      u.email.toLowerCase().includes(query)
+    );
+  }, [users, search]);
 
-  if (loading) return <div className="animate-pulse space-y-4">{[...Array(5)].map((_, i) => <div key={i} className="h-16 bg-white rounded-xl"></div>)}</div>;
+  if (loading) {
+    return (
+      <div className="animate-pulse space-y-4">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="h-16 bg-white rounded-xl"></div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -42,9 +53,9 @@ const UsersPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative flex-1 w-full md:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input 
-            type="text" 
-            placeholder="Search users by name or email..." 
+          <input
+            type="text"
+            placeholder="Search users by name or email..."
             className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             value={search}
             onChange={(e) => setSearch(e.target.value)}

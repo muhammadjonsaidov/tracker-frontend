@@ -1,10 +1,9 @@
-
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { api } from '../services/api';
-import { SessionSummaryResponse, PointRow } from '../types';
-import { ArrowLeft, Navigation, Watch, FastForward, Maximize, MapPin, Info } from 'lucide-react';
-import InlineError from '../components/InlineError';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, FastForward, Info, MapPin, Maximize, Navigation, Watch } from 'lucide-react';
+import { api } from '@/shared/services/api';
+import { PointRow, SessionSummaryResponse } from '@/shared/types';
+import InlineError from '@/shared/components/InlineError';
 
 declare const L: any;
 
@@ -36,9 +35,7 @@ const SessionDetail: React.FC = () => {
     if (!sessionId || fetchingRef.current) return;
     fetchingRef.current = true;
     const silent = options?.silent ?? false;
-    if (!silent) {
-      setLoading(true);
-    }
+    if (!silent) setLoading(true);
 
     const summaryNeeded = !summaryRef.current;
     const summaryPromise = summaryNeeded ? api.getSessionSummary(sessionId) : null;
@@ -46,7 +43,7 @@ const SessionDetail: React.FC = () => {
 
     const [summaryResult, pointsResult] = await Promise.allSettled([
       summaryPromise ?? Promise.resolve(null),
-      pointsPromise
+      pointsPromise,
     ]);
 
     let nextSummary = summaryRef.current;
@@ -90,9 +87,7 @@ const SessionDetail: React.FC = () => {
       setError('');
     }
 
-    if (!silent) {
-      setLoading(false);
-    }
+    if (!silent) setLoading(false);
     fetchingRef.current = false;
   }, [sessionId]);
 
@@ -133,12 +128,14 @@ const SessionDetail: React.FC = () => {
   useEffect(() => {
     if (!points.length) return;
 
-    if (!mapRef.current) {
+    if (!mapRef.current && typeof L !== 'undefined') {
       mapRef.current = L.map('session-map').setView([points[0].lat, points[0].lon], 15);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
       }).addTo(mapRef.current);
     }
+
+    if (!mapRef.current) return;
 
     if (!overlaysRef.current) {
       overlaysRef.current = L.layerGroup().addTo(mapRef.current);
@@ -146,29 +143,30 @@ const SessionDetail: React.FC = () => {
       overlaysRef.current.clearLayers();
     }
 
-    const pathCoords = points.map(p => [p.lat, p.lon]);
-    
-    // Start Marker
+    const pathCoords = points.map((p) => [p.lat, p.lon]);
+
     L.circleMarker(pathCoords[0], { radius: 6, color: '#22c55e', fillOpacity: 1 })
       .addTo(overlaysRef.current)
       .bindPopup('Start Point');
-    
-    // End Marker
+
     L.circleMarker(pathCoords[pathCoords.length - 1], { radius: 6, color: '#ef4444', fillOpacity: 1 })
       .addTo(overlaysRef.current)
       .bindPopup('End Point');
 
-    // Draw Line
     const polyline = L.polyline(pathCoords, { color: '#4f46e5', weight: 4, opacity: 0.8 })
       .addTo(overlaysRef.current);
-    
-    // Zoom to fit
+
     mapRef.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
     window.setTimeout(() => mapRef.current?.invalidateSize(), 0);
-
   }, [points]);
 
-  if (loading) return <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
   if (error) return <InlineError message={error} />;
   if (!summary && !points.length) return <div>Session not found.</div>;
 
@@ -194,7 +192,7 @@ const SessionDetail: React.FC = () => {
         </div>
       )}
       <div className="flex items-center justify-between">
-        <button 
+        <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-gray-500 hover:text-gray-900 font-medium"
         >
@@ -208,7 +206,6 @@ const SessionDetail: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Statistics Cards */}
         <div className="lg:col-span-1 space-y-4">
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-6">Trip Summary</h3>
@@ -262,7 +259,6 @@ const SessionDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Map Area */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative min-h-[18rem] h-[45vh] sm:h-[50vh] lg:h-auto lg:min-h-[500px]">
           {points.length > 0 ? (
             <div id="session-map" className="w-full h-full"></div>
@@ -274,7 +270,6 @@ const SessionDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Raw Points Table */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-100">
           <h3 className="font-bold text-gray-900">Raw Tracking Points</h3>

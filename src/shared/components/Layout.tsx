@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { LayoutDashboard, Users, History, LogOut, Map as MapIcon, ShieldCheck, Activity, Menu, X } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { api } from '../services/api';
+import { api } from '@/shared/services/api';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
@@ -35,9 +35,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 flex flex-col transform transition-transform duration-200 lg:static lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 flex flex-col transform transition-transform duration-200 lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <div className="p-6 border-b border-gray-200 flex items-center gap-3">
           <div className="bg-indigo-600 p-2 rounded-lg">
@@ -53,7 +52,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <X className="h-5 w-5" />
           </button>
         </div>
-        
+
         <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -62,11 +61,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  isActive(item.path)
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive(item.path)
                     ? 'bg-indigo-50 text-indigo-600 font-semibold'
                     : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 <Icon className="w-5 h-5" />
                 {item.name}
@@ -99,7 +97,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <Menu className="h-5 w-5" />
             </button>
             <h2 className="text-lg font-semibold text-gray-800">
-            {navItems.find(i => i.path === location.pathname)?.name || 'Admin Panel'}
+              {navItems.find(i => i.path === location.pathname)?.name || 'Admin Panel'}
             </h2>
           </div>
           <div className="flex items-center gap-4">
@@ -107,8 +105,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <p className="font-medium text-gray-900">Administrator</p>
               <p className="text-gray-500">Super Admin</p>
             </div>
-            <img 
-              src="https://picsum.photos/seed/admin/40/40" 
+            <img
+              src="https://picsum.photos/seed/admin/40/40"
               className="w-10 h-10 rounded-full border border-gray-200"
               alt="Avatar"
             />

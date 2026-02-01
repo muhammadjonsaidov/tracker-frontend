@@ -1,10 +1,9 @@
-
-import React, { useEffect, useState } from 'react';
-import { api } from '../services/api';
-import { SessionRow, SessionPage } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import InlineError from '../components/InlineError';
+import { api } from '@/shared/services/api';
+import { SessionPage } from '@/shared/types';
+import InlineError from '@/shared/components/InlineError';
 
 const SessionsPage: React.FC = () => {
   const [sessionPage, setSessionPage] = useState<SessionPage | null>(null);
@@ -16,7 +15,7 @@ const SessionsPage: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     api.getUsers()
-      .then(res => {
+      .then((res) => {
         if (!isMounted) return;
         const map: Record<string, string> = {};
         (res.data || []).forEach((user) => {
@@ -33,21 +32,27 @@ const SessionsPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
     setLoading(true);
     setError('');
     api.getSessions(params)
-      .then(res => {
+      .then((res) => {
+        if (!isMounted) return;
         setSessionPage(res.data);
         setLoading(false);
       })
       .catch((err: any) => {
+        if (!isMounted) return;
         setError(err?.message || 'Failed to load sessions.');
         setLoading(false);
       });
+    return () => { isMounted = false; };
   }, [params]);
 
+  const sessions = useMemo(() => sessionPage?.items ?? [], [sessionPage]);
+
   const getStatusColor = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'ACTIVE': return 'bg-green-100 text-green-700';
       case 'STOPPED': return 'bg-gray-100 text-gray-700';
       case 'ABORTED': return 'bg-red-100 text-red-700';
@@ -55,13 +60,19 @@ const SessionsPage: React.FC = () => {
     }
   };
 
-  if (loading && !sessionPage) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
+  if (loading && !sessionPage) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {error && <InlineError message={error} />}
       <div className="space-y-3 md:hidden">
-        {sessionPage?.items.map((session) => {
+        {sessions.map((session) => {
           const hasPoints = !!session.lastPointAt;
           const lastPointLabel = hasPoints ? new Date(session.lastPointAt).toLocaleTimeString() : '—';
           const disableDetails = session.status === 'ACTIVE' && !hasPoints;
@@ -98,7 +109,7 @@ const SessionsPage: React.FC = () => {
                     Waiting for points
                   </span>
                 ) : (
-                  <Link 
+                  <Link
                     to={`/sessions/${session.sessionId}`}
                     className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-semibold text-sm transition-all"
                   >
@@ -110,7 +121,7 @@ const SessionsPage: React.FC = () => {
             </div>
           );
         })}
-        {(sessionPage?.items.length ?? 0) === 0 && (
+        {sessions.length === 0 && (
           <div className="rounded-2xl border border-gray-100 bg-white p-6 text-center text-sm text-gray-500">
             No sessions found.
           </div>
@@ -132,7 +143,7 @@ const SessionsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {sessionPage?.items.map((session) => {
+              {sessions.map((session) => {
                 const hasPoints = !!session.lastPointAt;
                 const lastPointLabel = hasPoints ? new Date(session.lastPointAt).toLocaleTimeString() : '—';
                 const disableDetails = session.status === 'ACTIVE' && !hasPoints;
@@ -140,56 +151,57 @@ const SessionsPage: React.FC = () => {
                   || (session.userId ? usersById[session.userId] : undefined)
                   || '—';
                 return (
-                <tr key={session.sessionId} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 font-mono text-xs text-gray-600">
-                    {session.sessionId.slice(0, 13)}...
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-700">
-                      {userLabel}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-800">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      {new Date(session.startTime).toLocaleString()}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-500">
-                      {session.stopTime ? new Date(session.stopTime).toLocaleString() : '—'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${getStatusColor(session.status)}`}>
-                      {session.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-400 italic">
-                    {lastPointLabel}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    {disableDetails ? (
-                      <span className="inline-flex items-center gap-2 text-gray-400 text-sm font-semibold">
-                        <Eye className="w-4 h-4" />
-                        Waiting for points
+                  <tr key={session.sessionId} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 font-mono text-xs text-gray-600">
+                      {session.sessionId.slice(0, 13)}...
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-700">
+                        {userLabel}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-800">
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        {new Date(session.startTime).toLocaleString()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-500">
+                        {session.stopTime ? new Date(session.stopTime).toLocaleString() : '—'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1 text-xs font-bold rounded-full ${getStatusColor(session.status)}`}>
+                        {session.status}
                       </span>
-                    ) : (
-                      <Link 
-                        to={`/sessions/${session.sessionId}`}
-                        className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-semibold text-sm transition-all"
-                      >
-                        <Eye className="w-4 h-4" />
-                        View Details
-                      </Link>
-                    )}
-                  </td>
-                </tr>
-              )})}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-400 italic">
+                      {lastPointLabel}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {disableDetails ? (
+                        <span className="inline-flex items-center gap-2 text-gray-400 text-sm font-semibold">
+                          <Eye className="w-4 h-4" />
+                          Waiting for points
+                        </span>
+                      ) : (
+                        <Link
+                          to={`/sessions/${session.sessionId}`}
+                          className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-semibold text-sm transition-all"
+                        >
+                          <Eye className="w-4 h-4" />
+                          View Details
+                        </Link>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-        {(sessionPage?.items.length ?? 0) === 0 && (
+        {sessions.length === 0 && (
           <div className="py-12 text-center">
             <p className="text-gray-500 font-medium">No sessions found.</p>
           </div>
@@ -198,20 +210,20 @@ const SessionsPage: React.FC = () => {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-sm text-gray-500">
-          Showing <span className="font-bold">{sessionPage?.items.length || 0}</span> of <span className="font-bold">{sessionPage?.totalElements || 0}</span> sessions
+          Showing <span className="font-bold">{sessions.length}</span> of <span className="font-bold">{sessionPage?.totalElements || 0}</span> sessions
         </p>
         <div className="flex items-center gap-2">
-          <button 
+          <button
             disabled={params.page === 0}
-            onClick={() => setParams(p => ({ ...p, page: p.page - 1 }))}
+            onClick={() => setParams((p) => ({ ...p, page: p.page - 1 }))}
             className="p-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 transition-all"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <span className="text-sm font-bold text-gray-700">Page {params.page + 1} of {sessionPage?.totalPages || 1}</span>
-          <button 
+          <button
             disabled={params.page >= (sessionPage?.totalPages || 1) - 1}
-            onClick={() => setParams(p => ({ ...p, page: p.page + 1 }))}
+            onClick={() => setParams((p) => ({ ...p, page: p.page + 1 }))}
             className="p-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 transition-all"
           >
             <ChevronRight className="w-5 h-5" />

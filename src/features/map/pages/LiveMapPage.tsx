@@ -1,20 +1,23 @@
-
-import React, { useEffect, useState, useRef } from 'react';
-import { api } from '../services/api';
-import { LastLocationRow } from '../types';
-import InlineError from '../components/InlineError';
+// @ts-ignore
+import { EventSourcePolyfill } from 'event-source-polyfill';
+import React, { useEffect, useRef, useState } from 'react';
+import InlineError from '@/shared/components/InlineError';
+import { api } from '@/shared/services/api';
+import { LastLocationRow } from '@/shared/types';
 
 declare const L: any;
 
 const LiveMap: React.FC = () => {
   const mapRef = useRef<any>(null);
-  const markersRef = useRef<{ [key: string]: any }>({});
+  const markersRef = useRef<Record<string, any>>({});
   const [locations, setLocations] = useState<LastLocationRow[]>([]);
   const [usersById, setUsersById] = useState<Record<string, string>>({});
   const usersByIdRef = useRef<Record<string, string>>({});
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [error, setError] = useState('');
   const pollingRef = useRef<number | null>(null);
+  const retryRef = useRef<number | null>(null);
+  const backoffRef = useRef(5000);
 
   useEffect(() => {
     let isMounted = true;
@@ -32,7 +35,6 @@ const LiveMap: React.FC = () => {
 
     const updateMarker = (loc: LastLocationRow) => {
       if (!mapRef.current || !isMounted) return;
-
       const { userId, lat, lon, active, speedMps } = loc;
       const fillColor = active ? '#22c55e' : '#94a3b8';
       const userLabel = usersByIdRef.current[userId] || userId.slice(0, 8);
@@ -45,7 +47,7 @@ const LiveMap: React.FC = () => {
             <p class="text-xs text-gray-600">Status: ${active ? 'Active' : 'Idle'}</p>
           </div>
         `;
-      
+
       if (markersRef.current[userId]) {
         const marker = markersRef.current[userId];
         marker.setLatLng([lat, lon]);
@@ -70,72 +72,99 @@ const LiveMap: React.FC = () => {
           opacity: 1,
           fillOpacity: 0.8
         }).addTo(mapRef.current);
-        
+
         marker.bindPopup(popupHtml);
         markersRef.current[userId] = marker;
       }
     };
 
-    const startStream = async () => {
-      try {
-        const tokenRes = await api.getStreamToken();
-        if (!isMounted) return;
-
-        const sseUrl = api.getSseUrl(tokenRes.data.token);
-        eventSource = new EventSource(sseUrl);
-        
-        eventSource.onopen = () => {
-          if (isMounted) setStatus('connected');
-        };
-        
-        eventSource.onmessage = (event) => {
-          if (!isMounted) return;
-          try {
-            const update: LastLocationRow = JSON.parse(event.data);
-            updateMarker(update);
-            setLocations(prev => {
-              const filtered = prev.filter(l => l.userId !== update.userId);
-              return [update, ...filtered];
-            });
-          } catch (e) {
-            console.warn('Malformed SSE data', e);
-          }
-        };
-
-        eventSource.onerror = (e) => {
-          if (isMounted) {
-            console.error('SSE Error Event', e);
-            setStatus('error');
-            setError('Realtime stream error. Please retry.');
-          }
-          eventSource?.close();
-        };
-      } catch (err) {
-        console.error('Failed to start stream', err);
-        if (isMounted) setStatus('error');
-        if (isMounted) setError((err as any)?.message || 'Failed to start realtime stream.');
-      }
-    };
-
-    initMap();
     const refreshLocations = () => {
       api.getLastLocations()
-        .then(res => {
+        .then((res) => {
           if (isMounted && res.data) {
             res.data.forEach(updateMarker);
             setLocations(res.data);
           }
         })
-        .catch(err => {
-          console.error('Location fetch failed', err);
+        .catch((err) => {
           if (isMounted) setError((err as any)?.message || 'Failed to load locations.');
         });
     };
 
+    const scheduleRetry = (message: string) => {
+      if (!isMounted) return;
+      setStatus('error');
+      setError(message);
+      if (retryRef.current === null) {
+        retryRef.current = window.setTimeout(() => {
+          retryRef.current = null;
+          startStream();
+        }, backoffRef.current);
+        backoffRef.current = Math.min(backoffRef.current * 2, 30000);
+      }
+    };
+
+    const startStream = async () => {
+      try {
+        setStatus('connecting');
+        setError('');
+        const tokenRes = await api.getStreamToken();
+        if (!isMounted) return;
+
+        const streamToken = tokenRes?.data?.token;
+        if (!streamToken) {
+          scheduleRetry('Stream token missing. Retrying...');
+          return;
+        }
+
+        const sseUrl = api.getSseUrl(streamToken);
+
+        // Use Polyfill to support custom headers
+        eventSource = new EventSourcePolyfill(sseUrl, {
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'Authorization': `Bearer ${api.getToken()}`
+          },
+          heartbeatTimeout: 120000,
+        }) as any as EventSource;
+
+        eventSource.onopen = () => {
+          if (isMounted) {
+            setStatus('connected');
+            setError('');
+            backoffRef.current = 5000;
+          }
+        };
+
+        eventSource.onmessage = (event) => {
+          if (!isMounted) return;
+          try {
+            const update: LastLocationRow = JSON.parse(event.data);
+            updateMarker(update);
+            setLocations((prev) => {
+              const filtered = prev.filter((l) => l.userId !== update.userId);
+              return [update, ...filtered];
+            });
+          } catch {
+            // ignore malformed events
+          }
+        };
+
+        eventSource.onerror = (e) => {
+          console.error('SSE Error:', e);
+          eventSource?.close();
+          scheduleRetry('Realtime stream error. Retrying...');
+        };
+      } catch (err) {
+        scheduleRetry((err as any)?.message || 'Failed to start realtime stream. Retrying...');
+      }
+    };
+
+    initMap();
     refreshLocations();
 
     api.getUsers()
-      .then(res => {
+      .then((res) => {
         if (!isMounted) return;
         const map: Record<string, string> = {};
         (res.data || []).forEach((user) => {
@@ -167,6 +196,10 @@ const LiveMap: React.FC = () => {
         window.clearInterval(pollingRef.current);
         pollingRef.current = null;
       }
+      if (retryRef.current) {
+        window.clearTimeout(retryRef.current);
+        retryRef.current = null;
+      }
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -185,20 +218,20 @@ const LiveMap: React.FC = () => {
         </div>
         <div className="text-sm text-gray-500">Showing {locations.length} tracked objects</div>
       </div>
-      
+
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0">
         <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative min-h-[18rem] h-[45vh] sm:h-[50vh] lg:h-auto">
           <div id="live-map" className="w-full h-full"></div>
         </div>
-        
+
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col min-h-0">
           <div className="p-4 border-b border-gray-100">
             <h3 className="font-bold text-gray-900">Live Feed</h3>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {locations.map((loc) => (
-              <div 
-                key={loc.userId} 
+              <div
+                key={loc.userId}
                 className="p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => mapRef.current?.setView([loc.lat, loc.lon], 16)}
               >

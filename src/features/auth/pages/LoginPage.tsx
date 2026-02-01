@@ -1,42 +1,44 @@
-
 import React, { useState } from 'react';
-import { api } from '../services/api';
-import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Lock, User, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '@/shared/services/api';
+
+const decodeJwtPayload = (token: string): any | null => {
+  const parts = token.split('.');
+  if (parts.length < 2) return null;
+  const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+  try {
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+};
+
+const hasAdminRole = (payload: any): boolean => {
+  if (!payload) return false;
+  const roles = payload.roles ?? payload.authorities ?? payload.role;
+  const list = Array.isArray(roles) ? roles : roles ? [roles] : [];
+  return list.some((role) => role === 'ADMIN' || role === 'ROLE_ADMIN');
+};
 
 const Login: React.FC = () => {
-  const [username, setUsername] = useState('');
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-  const decodeJwtPayload = (token: string): any | null => {
-    const parts = token.split('.');
-    if (parts.length < 2) return null;
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
-    try {
-      return JSON.parse(atob(padded));
-    } catch {
-      return null;
-    }
-  };
-
-  const hasAdminRole = (payload: any): boolean => {
-    if (!payload) return false;
-    const roles = payload.roles ?? payload.authorities ?? payload.role;
-    const list = Array.isArray(roles) ? roles : roles ? [roles] : [];
-    return list.some((role) => role === 'ADMIN' || role === 'ROLE_ADMIN');
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      const res = await api.login(username, password);
-      const token = res.data.accessToken;
+      const res = await api.login(usernameOrEmail, password);
+      const token = res?.data?.accessToken;
+      if (!token) {
+        throw new Error('Login failed: access token missing.');
+      }
       const payload = decodeJwtPayload(token);
       if (!hasAdminRole(payload)) {
         api.setToken(null);
@@ -46,7 +48,7 @@ const Login: React.FC = () => {
       api.setToken(token);
       navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      setError(err?.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -81,8 +83,8 @@ const Login: React.FC = () => {
                   required
                   className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
                   placeholder="Enter username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={usernameOrEmail}
+                  onChange={(e) => setUsernameOrEmail(e.target.value)}
                 />
               </div>
             </div>
