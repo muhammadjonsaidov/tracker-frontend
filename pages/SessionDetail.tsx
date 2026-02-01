@@ -75,10 +75,17 @@ const SessionDetail: React.FC = () => {
     }
 
     const hasFailure =
-      (summaryNeeded && summaryResult.status === 'rejected') || pointsResult.status === 'rejected';
-    if (hasFailure && summaryMissing && pointsMissing) {
-      const err = summaryResult.status === 'rejected' ? summaryResult.reason : pointsResult.reason;
-      setError((err as any)?.message || 'Failed to load session data.');
+      summaryMissing && pointsMissing &&
+      ((summaryNeeded && summaryResult.status === 'rejected') || pointsResult.status === 'rejected');
+
+    if (hasFailure) {
+      if (summaryNeeded && summaryResult.status === 'rejected') {
+        const err = (summaryResult as PromiseRejectedResult).reason;
+        setError((err as any)?.message || String(err) || 'Failed to load session data.');
+      } else if (pointsResult.status === 'rejected') {
+        const err = (pointsResult as PromiseRejectedResult).reason;
+        setError((err as any)?.message || String(err) || 'Failed to load session data.');
+      }
     } else if (!silent) {
       setError('');
     }
@@ -157,6 +164,7 @@ const SessionDetail: React.FC = () => {
     
     // Zoom to fit
     mapRef.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+    window.setTimeout(() => mapRef.current?.invalidateSize(), 0);
 
   }, [points]);
 
