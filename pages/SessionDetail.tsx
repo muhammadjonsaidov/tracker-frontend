@@ -255,7 +255,7 @@ const SessionDetail: React.FC = () => {
         </div>
 
         {/* Map Area */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative min-h-[500px]">
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative min-h-[18rem] h-[45vh] sm:h-[50vh] lg:h-auto lg:min-h-[500px]">
           {points.length > 0 ? (
             <div id="session-map" className="w-full h-full"></div>
           ) : (
@@ -271,33 +271,58 @@ const SessionDetail: React.FC = () => {
         <div className="p-6 border-b border-gray-100">
           <h3 className="font-bold text-gray-900">Raw Tracking Points</h3>
         </div>
-        <div className="max-h-96 overflow-y-auto">
-          <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Timestamp</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Lat</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Lon</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Speed</th>
-                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Accuracy</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {points.map((p, idx) => (
-                <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-3 text-sm text-gray-600">{new Date(p.ts).toLocaleString()}</td>
-                  <td className="px-6 py-3 text-sm font-mono">{p.lat.toFixed(6)}</td>
-                  <td className="px-6 py-3 text-sm font-mono">{p.lon.toFixed(6)}</td>
-                  <td className="px-6 py-3 text-sm text-indigo-600 font-medium">
-                    {p.speedMps ? (p.speedMps * 3.6).toFixed(1) : 0} km/h
-                  </td>
-                  <td className="px-6 py-3 text-sm text-gray-400">
-                    {p.accuracyM ? `${p.accuracyM.toFixed(1)}m` : '—'}
-                  </td>
+        <div className="md:hidden max-h-96 overflow-y-auto p-4 space-y-3">
+          {points.map((p, idx) => (
+            <div key={idx} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+              <div className="text-xs text-gray-500">{new Date(p.ts).toLocaleString()}</div>
+              <div className="mt-2 grid gap-1 text-sm text-gray-700">
+                <div>Lat: <span className="font-mono">{p.lat.toFixed(6)}</span></div>
+                <div>Lon: <span className="font-mono">{p.lon.toFixed(6)}</span></div>
+                <div>Speed: <span className="text-indigo-600 font-medium">{p.speedMps ? (p.speedMps * 3.6).toFixed(1) : 0} km/h</span></div>
+                <div>Accuracy: <span className="text-gray-500">{p.accuracyM ? `${p.accuracyM.toFixed(1)}m` : '—'}</span></div>
+              </div>
+            </div>
+          ))}
+          {points.length === 0 && (
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-6 text-center text-sm text-gray-500">
+              No tracking points yet.
+            </div>
+          )}
+        </div>
+        <div className="hidden md:block">
+          <div className="max-h-96 overflow-y-auto">
+            <table className="min-w-[720px] w-full text-left border-collapse">
+              <thead className="sticky top-0 bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Timestamp</th>
+                  <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Lat</th>
+                  <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Lon</th>
+                  <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Speed</th>
+                  <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Accuracy</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {points.map((p, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-3 text-sm text-gray-600">{new Date(p.ts).toLocaleString()}</td>
+                    <td className="px-6 py-3 text-sm font-mono">{p.lat.toFixed(6)}</td>
+                    <td className="px-6 py-3 text-sm font-mono">{p.lon.toFixed(6)}</td>
+                    <td className="px-6 py-3 text-sm text-indigo-600 font-medium">
+                      {p.speedMps ? (p.speedMps * 3.6).toFixed(1) : 0} km/h
+                    </td>
+                    <td className="px-6 py-3 text-sm text-gray-400">
+                      {p.accuracyM ? `${p.accuracyM.toFixed(1)}m` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {points.length === 0 && (
+            <div className="py-12 text-center">
+              <p className="text-gray-500 font-medium">No tracking points yet.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -12,12 +12,12 @@ const MonitoringPage: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900">Monitoring</h2>
           <p className="text-sm text-gray-500">Prometheus metrics and Grafana dashboards.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <a
             href={PROM_URL}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
             Open Prometheus
             <ExternalLink className="h-4 w-4" />
@@ -26,7 +26,7 @@ const MonitoringPage: React.FC = () => {
             href={GRAFANA_URL}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
           >
             Open Grafana
             <ExternalLink className="h-4 w-4" />

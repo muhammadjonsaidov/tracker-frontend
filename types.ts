@@ -34,6 +34,8 @@ export interface LastLocationRow {
 
 export interface SessionRow {
   sessionId: string;
+  userId?: string;
+  username?: string;
   startTime: string;
   stopTime: string;
   status: 'ACTIVE' | 'STOPPED' | 'ARCHIVED' | 'EXPIRED' | 'ABORTED';

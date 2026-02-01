@@ -10,6 +10,8 @@ const LiveMap: React.FC = () => {
   const mapRef = useRef<any>(null);
   const markersRef = useRef<{ [key: string]: any }>({});
   const [locations, setLocations] = useState<LastLocationRow[]>([]);
+  const [usersById, setUsersById] = useState<Record<string, string>>({});
+  const usersByIdRef = useRef<Record<string, string>>({});
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [error, setError] = useState('');
   const pollingRef = useRef<number | null>(null);
@@ -33,10 +35,13 @@ const LiveMap: React.FC = () => {
 
       const { userId, lat, lon, active, speedMps } = loc;
       const fillColor = active ? '#22c55e' : '#94a3b8';
+      const userLabel = usersByIdRef.current[userId] || userId.slice(0, 8);
+      const speedLabel = typeof speedMps === 'number' ? `${(speedMps * 3.6).toFixed(1)} km/h` : '-';
       const popupHtml = `
           <div class="p-1">
-            <p class="font-bold">User: ${userId.slice(0, 8)}</p>
-            <p class="text-xs text-gray-600">Speed: ${(speedMps * 3.6).toFixed(1)} km/h</p>
+            <p class="font-bold">User: ${userLabel}</p>
+            <p class="text-xs text-gray-500">ID: ${userId.slice(0, 8)}</p>
+            <p class="text-xs text-gray-600">Speed: ${speedLabel}</p>
             <p class="text-xs text-gray-600">Status: ${active ? 'Active' : 'Idle'}</p>
           </div>
         `;
@@ -129,6 +134,29 @@ const LiveMap: React.FC = () => {
 
     refreshLocations();
 
+    api.getUsers()
+      .then(res => {
+        if (!isMounted) return;
+        const map: Record<string, string> = {};
+        (res.data || []).forEach((user) => {
+          if (user?.id) {
+            map[user.id] = user.username || user.email || user.id;
+          }
+        });
+        usersByIdRef.current = map;
+        setUsersById(map);
+        setLocations((prev) => {
+          prev.forEach(updateMarker);
+          return [...prev];
+        });
+      })
+      .catch(() => {
+        if (isMounted) {
+          usersByIdRef.current = {};
+          setUsersById({});
+        }
+      });
+
     startStream();
     pollingRef.current = window.setInterval(refreshLocations, 5000);
 
@@ -159,7 +187,7 @@ const LiveMap: React.FC = () => {
       </div>
       
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0">
-        <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative">
+        <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative min-h-[18rem] h-[45vh] sm:h-[50vh] lg:h-auto">
           <div id="live-map" className="w-full h-full"></div>
         </div>
         
@@ -180,10 +208,13 @@ const LiveMap: React.FC = () => {
                     {loc.active ? 'LIVE' : 'IDLE'}
                   </span>
                 </div>
+                <p className="text-sm font-semibold text-gray-800">
+                  {usersById[loc.userId] || loc.userId.slice(0, 8)}
+                </p>
                 <p className="text-sm font-medium text-gray-800">Lat: {loc.lat.toFixed(5)}</p>
                 <p className="text-sm font-medium text-gray-800">Lon: {loc.lon.toFixed(5)}</p>
                 <div className="mt-2 flex items-center justify-between text-[10px] text-gray-400">
-                  <span>{(loc.speedMps * 3.6).toFixed(1)} km/h</span>
+                  <span>{typeof loc.speedMps === 'number' ? `${(loc.speedMps * 3.6).toFixed(1)} km/h` : '-'}</span>
                   <span>{new Date(loc.ts).toLocaleTimeString()}</span>
                 </div>
               </div>
