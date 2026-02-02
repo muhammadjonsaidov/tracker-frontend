@@ -106,9 +106,11 @@ const LiveMap: React.FC = () => {
 
     const startStream = async () => {
       try {
+        console.log('Attempting to start SSE stream...');
         setStatus('connecting');
         setError('');
         const tokenRes = await api.getStreamToken();
+        console.log('Stream token response:', tokenRes);
         if (!isMounted) return;
 
         const streamToken = tokenRes?.data?.token;
@@ -118,6 +120,7 @@ const LiveMap: React.FC = () => {
         }
 
         const sseUrl = api.getSseUrl(streamToken);
+        console.log('Connecting to SSE URL:', sseUrl);
 
         // Use Polyfill to support custom headers
         eventSource = new EventSourcePolyfill(sseUrl, {
@@ -129,6 +132,7 @@ const LiveMap: React.FC = () => {
         }) as any as EventSource;
 
         eventSource.onopen = () => {
+          console.log('SSE connection successfully opened.');
           if (isMounted) {
             setStatus('connected');
             setError('');
