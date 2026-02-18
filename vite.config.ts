@@ -12,9 +12,9 @@ export default defineConfig(() => ({
     port: 3000,
     host: true,
     strictPort: true,
-    allowedHosts: ['living-likely-monster.ngrok-free.app'],
+    allowedHosts: ['hyperconfident-carter-sweptback.ngrok-free.dev'],
     hmr: {
-      host: 'living-likely-monster.ngrok-free.app',
+      host: 'hyperconfident-carter-sweptback.ngrok-free.dev',
       protocol: 'wss',
       clientPort: 443,
       path: '/frontend/@vite',
