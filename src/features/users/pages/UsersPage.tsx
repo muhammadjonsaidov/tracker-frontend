@@ -155,16 +155,16 @@ const UsersPage: React.FC = () => {
 
       {error && <InlineError message={error} />}
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left border-collapse">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[600px] flex flex-col">
+        <div className="overflow-x-auto flex-1">
+          <table className="min-w-full text-left border-collapse table-fixed">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">User</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Role</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Joined At</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[250px]">User</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[120px]">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[120px]">Role</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[150px]">Joined At</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[120px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -178,20 +178,20 @@ const UsersPage: React.FC = () => {
                   </td>
                 </tr>
               ) : filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
+                <tr key={user.id} className="hover:bg-gray-50 transition-colors h-[73px]">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       <img src={`https://picsum.photos/seed/${user.id}/40/40`} className="w-10 h-10 rounded-full border border-gray-100" />
-                      <div>
-                        <p className="font-bold text-gray-900">{user.username}</p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
+                      <div className="truncate">
+                        <p className="font-bold text-gray-900 truncate">{user.username}</p>
+                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full uppercase">Active</span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase ${user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                       {user.role}
                     </span>
@@ -199,7 +199,7 @@ const UsersPage: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <UserActions user={user} />
                   </td>
                 </tr>

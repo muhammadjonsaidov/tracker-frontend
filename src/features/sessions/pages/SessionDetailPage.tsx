@@ -4,6 +4,7 @@ import { ArrowLeft, FastForward, Info, MapPin, Maximize, Navigation, Watch } fro
 import { api } from '@/shared/services/api';
 import { PointRow, SessionSummaryResponse } from '@/shared/types';
 import InlineError from '@/shared/components/InlineError';
+import { decodePolyline } from '@/shared/utils/polyline';
 
 declare const L: any;
 
@@ -126,10 +127,19 @@ const SessionDetail: React.FC = () => {
   }, [sessionId, fetchData]);
 
   useEffect(() => {
-    if (!points.length) return;
+    let pathCoords: [number, number][] = [];
+    const isFinished = !!summary?.simplifiedPolyline;
+
+    if (isFinished) {
+      pathCoords = decodePolyline(summary.simplifiedPolyline);
+    } else if (points.length > 0) {
+      pathCoords = points.map((p) => [p.lat, p.lon]);
+    }
+
+    if (!pathCoords.length) return;
 
     if (!mapRef.current && typeof L !== 'undefined') {
-      mapRef.current = L.map('session-map').setView([points[0].lat, points[0].lon], 15);
+      mapRef.current = L.map('session-map').setView(pathCoords[0], 15);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
       }).addTo(mapRef.current);
@@ -143,22 +153,52 @@ const SessionDetail: React.FC = () => {
       overlaysRef.current.clearLayers();
     }
 
-    const pathCoords = points.map((p) => [p.lat, p.lon]);
-
+    // Draw Start Marker
     L.circleMarker(pathCoords[0], { radius: 6, color: '#22c55e', fillOpacity: 1 })
       .addTo(overlaysRef.current)
       .bindPopup('Start Point');
 
-    L.circleMarker(pathCoords[pathCoords.length - 1], { radius: 6, color: '#ef4444', fillOpacity: 1 })
-      .addTo(overlaysRef.current)
-      .bindPopup('End Point');
+    // Draw End/Live Marker
+    if (isFinished) {
+      L.circleMarker(pathCoords[pathCoords.length - 1], { radius: 6, color: '#ef4444', fillOpacity: 1 })
+        .addTo(overlaysRef.current)
+        .bindPopup('End Point');
+    } else {
+      const lastPoint = points[points.length - 1];
+      const heading = lastPoint?.headingDeg ?? 0;
 
-    const polyline = L.polyline(pathCoords, { color: '#4f46e5', weight: 4, opacity: 0.8 })
-      .addTo(overlaysRef.current);
+      // Custom Live Arrow or Dot
+      const liveIcon = L.divIcon({
+        className: 'live-marker',
+        html: `<div style="transform: rotate(${heading}deg); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; background: #4f46e5; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px rgba(79, 70, 229, 0.5);">
+                 <div style="width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 8px solid white; transform: translateY(-2px);"></div>
+               </div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
 
-    mapRef.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+      L.marker([lastPoint.lat, lastPoint.lon], { icon: liveIcon })
+        .addTo(overlaysRef.current)
+        .bindPopup('Current Location');
+    }
+
+    // Draw Polyline
+    const polyline = L.polyline(pathCoords, {
+      color: '#4f46e5',
+      weight: 4,
+      opacity: 0.8,
+      smoothFactor: isFinished ? 1.5 : 1 // Better smoothing for points in active mode
+    }).addTo(overlaysRef.current);
+
+    // Dynamic Bounds: Only auto-zoom on load or if points count changes significantly
+    if (!isFinished && points.length > 0) {
+      mapRef.current.panTo([points[points.length - 1].lat, points[points.length - 1].lon]);
+    } else {
+      mapRef.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+    }
+
     window.setTimeout(() => mapRef.current?.invalidateSize(), 0);
-  }, [points]);
+  }, [points, summary]);
 
   if (loading) {
     return (
@@ -260,7 +300,7 @@ const SessionDetail: React.FC = () => {
         </div>
 
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative min-h-[18rem] h-[45vh] sm:h-[50vh] lg:h-auto lg:min-h-[500px]">
-          {points.length > 0 ? (
+          {points.length > 0 || summary?.polyline ? (
             <div id="session-map" className="w-full h-full"></div>
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-gray-500">

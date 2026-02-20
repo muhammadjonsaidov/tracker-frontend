@@ -58,16 +58,16 @@ const AuditLogsPage: React.FC = () => {
 
             {error && <InlineError message={error} />}
 
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full text-left border-collapse">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[600px] flex flex-col">
+                <div className="overflow-x-auto flex-1">
+                    <table className="min-w-full text-left border-collapse table-fixed">
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-100">
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Timestamp</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Admin</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Action</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Target</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Metadata</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[220px]">Timestamp</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[180px]">Admin</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[150px]">Action</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[200px]">Target</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[150px]">Metadata</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -81,7 +81,7 @@ const AuditLogsPage: React.FC = () => {
                                     </td>
                                 </tr>
                             ) : logs.map((log) => (
-                                <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                                <tr key={log.id} className="hover:bg-gray-50 transition-colors h-[73px]">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         <div className="flex items-center gap-2">
                                             <Calendar className="w-4 h-4 text-gray-400" />
@@ -91,7 +91,9 @@ const AuditLogsPage: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex items-center gap-2 text-sm">
                                             <User className="w-4 h-4 text-gray-400" />
-                                            <span className="font-medium text-gray-900">{log.adminUsername || 'System'}</span>
+                                            <span className="font-medium text-gray-900 truncate max-w-[140px]" title={log.adminUsername || 'System'}>
+                                                {log.adminUsername || 'System'}
+                                            </span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -100,15 +102,17 @@ const AuditLogsPage: React.FC = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                        {log.targetType && (
-                                            <span className="font-medium text-gray-700">{log.targetType}: </span>
-                                        )}
-                                        <span className="text-xs font-mono">{log.targetId || '-'}</span>
+                                        <div className="truncate max-w-[180px]" title={`${log.targetType || ''}: ${log.targetId || '-'}`}>
+                                            {log.targetType && (
+                                                <span className="font-medium text-gray-700">{log.targetType}: </span>
+                                            )}
+                                            <span className="text-xs font-mono">{log.targetId || '-'}</span>
+                                        </div>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                                        <div className="flex items-center gap-2">
-                                            <Activity className="w-3 h-3" />
-                                            <span className="text-xs font-mono">{log.metadata || '{}'}</span>
+                                    <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                                        <div className="flex items-center gap-2 truncate max-w-[120px]" title={log.metadata || '{}'}>
+                                            <Activity className="w-3 h-3 shrink-0" />
+                                            <span className="text-xs font-mono truncate">{log.metadata || '{}'}</span>
                                         </div>
                                     </td>
                                 </tr>

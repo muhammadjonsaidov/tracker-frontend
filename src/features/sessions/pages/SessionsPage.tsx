@@ -71,18 +71,18 @@ const SessionsPage: React.FC = () => {
 
       {error && <InlineError message={error} />}
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left border-collapse">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[600px] flex flex-col">
+        <div className="overflow-x-auto flex-1">
+          <table className="min-w-full text-left border-collapse table-fixed">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Session ID</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">User</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Start Time</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">End Time</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Last Sync</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[140px]">Session ID</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[180px]">User</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[200px]">Start Time</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[200px]">End Time</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[120px]">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[120px]">Last Sync</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-[120px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -103,35 +103,35 @@ const SessionsPage: React.FC = () => {
                   || (session.userId ? usersById[session.userId] : undefined)
                   || '—';
                 return (
-                  <tr key={session.sessionId} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-mono text-xs text-gray-600">
+                  <tr key={session.sessionId} className="hover:bg-gray-50 transition-colors h-[73px]">
+                    <td className="px-6 py-4 font-mono text-xs text-gray-600 whitespace-nowrap">
                       {session.sessionId.slice(0, 13)}...
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900 truncate" title={userLabel}>
                         {userLabel}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Calendar className="w-4 h-4 text-gray-400" />
                         {new Date(session.startTime).toLocaleString()}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500">
                         {session.stopTime ? new Date(session.stopTime).toLocaleString() : '—'}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2.5 py-1 text-xs font-bold rounded-lg uppercase ${getStatusColor(session.status)}`}>
                         {session.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-400 italic">
+                    <td className="px-6 py-4 text-sm text-gray-400 italic whitespace-nowrap">
                       {lastPointLabel}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       {disableDetails ? (
                         <span className="flex items-center gap-2 text-gray-400 text-xs font-medium">
                           <Eye className="w-4 h-4" />
@@ -183,7 +183,7 @@ const SessionsPage: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 
