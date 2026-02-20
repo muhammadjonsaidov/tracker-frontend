@@ -1,6 +1,6 @@
-// @ts-ignore
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { EventSourcePolyfill } from 'event-source-polyfill';
-import React, { useEffect, useRef, useState } from 'react';
 import InlineError from '@/shared/components/InlineError';
 import { api } from '@/shared/services/api';
 import { LastLocationRow } from '@/shared/types';
@@ -15,7 +15,9 @@ const LiveMap: React.FC = () => {
   const usersByIdRef = useRef<Record<string, string>>({});
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [error, setError] = useState('');
-  const pollingRef = useRef<number | null>(null);
+  const [feedPage, setFeedPage] = useState(0);
+  const FEED_SIZE = 5;
+
   const retryRef = useRef<number | null>(null);
   const backoffRef = useRef(5000);
 
@@ -110,7 +112,6 @@ const LiveMap: React.FC = () => {
         setStatus('connecting');
         setError('');
         const tokenRes = await api.getStreamToken();
-        console.log('Stream token response:', tokenRes);
         if (!isMounted) return;
 
         const streamToken = tokenRes?.data?.token;
@@ -120,9 +121,6 @@ const LiveMap: React.FC = () => {
         }
 
         const sseUrl = api.getSseUrl(streamToken);
-        console.log('Connecting to SSE URL:', sseUrl);
-
-        // Use Polyfill to support custom headers
         eventSource = new EventSourcePolyfill(sseUrl, {
           headers: {
             'ngrok-skip-browser-warning': 'true',
@@ -132,7 +130,6 @@ const LiveMap: React.FC = () => {
         }) as any as EventSource;
 
         eventSource.onopen = () => {
-          console.log('SSE connection successfully opened.');
           if (isMounted) {
             setStatus('connected');
             setError('');
@@ -167,11 +164,12 @@ const LiveMap: React.FC = () => {
     initMap();
     refreshLocations();
 
-    api.getUsers()
+    api.getUsers({ size: 1000 })
       .then((res) => {
         if (!isMounted) return;
         const map: Record<string, string> = {};
-        (res.data || []).forEach((user) => {
+        const items = res.data.items || [];
+        items.forEach((user) => {
           if (user?.id) {
             map[user.id] = user.username || user.email || user.id;
           }
@@ -191,15 +189,10 @@ const LiveMap: React.FC = () => {
       });
 
     startStream();
-    pollingRef.current = window.setInterval(refreshLocations, 5000);
 
     return () => {
       isMounted = false;
       eventSource?.close();
-      if (pollingRef.current) {
-        window.clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
       if (retryRef.current) {
         window.clearTimeout(retryRef.current);
         retryRef.current = null;
@@ -212,52 +205,102 @@ const LiveMap: React.FC = () => {
     };
   }, []);
 
+  const totalPages = Math.ceil(locations.length / FEED_SIZE);
+  const pagedLocations = useMemo(() => {
+    const start = feedPage * FEED_SIZE;
+    return locations.slice(start, start + FEED_SIZE);
+  }, [locations, feedPage]);
+
   return (
     <div className="h-[calc(100vh-12rem)] flex flex-col gap-4">
       {error && <InlineError message={error} />}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
           <div className={`w-3 h-3 rounded-full animate-pulse ${status === 'connected' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-sm font-medium text-gray-600 capitalize">Real-time Stream: {status}</span>
+          <span className="text-sm font-bold text-gray-700 capitalize">Stream: {status}</span>
         </div>
-        <div className="text-sm text-gray-500">Showing {locations.length} tracked objects</div>
+        <div className="text-sm text-gray-500 font-medium">
+          Showing <span className="text-gray-900 font-bold">{locations.length}</span> active objects
+        </div>
       </div>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0">
-        <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative min-h-[18rem] h-[45vh] sm:h-[50vh] lg:h-auto">
+        <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative min-h-[20rem] h-[45vh] sm:h-[50vh] lg:h-auto">
           <div id="live-map" className="w-full h-full"></div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col min-h-0">
-          <div className="p-4 border-b border-gray-100">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col min-h-0 overflow-hidden">
+          <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
             <h3 className="font-bold text-gray-900">Live Feed</h3>
+            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">Realtime</span>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {locations.map((loc) => (
+            {pagedLocations.map((loc) => (
               <div
                 key={loc.userId}
-                className="p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors"
+                className="p-3 bg-white rounded-xl border border-gray-100 cursor-pointer hover:border-indigo-200 hover:shadow-md transition-all group"
                 onClick={() => mapRef.current?.setView([loc.lat, loc.lon], 16)}
               >
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs font-mono font-bold text-gray-500">ID: {loc.userId.slice(0, 6)}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${loc.active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
-                    {loc.active ? 'LIVE' : 'IDLE'}
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-[10px] font-mono font-bold text-gray-400 group-hover:text-indigo-400 transition-colors">
+                    {loc.userId.slice(0, 8)}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${loc.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {loc.active ? 'Active' : 'Idle'}
                   </span>
                 </div>
-                <p className="text-sm font-semibold text-gray-800">
+                <p className="text-sm font-bold text-gray-900 mb-1 truncate">
                   {usersById[loc.userId] || loc.userId.slice(0, 8)}
                 </p>
-                <p className="text-sm font-medium text-gray-800">Lat: {loc.lat.toFixed(5)}</p>
-                <p className="text-sm font-medium text-gray-800">Lon: {loc.lon.toFixed(5)}</p>
-                <div className="mt-2 flex items-center justify-between text-[10px] text-gray-400">
-                  <span>{typeof loc.speedMps === 'number' ? `${(loc.speedMps * 3.6).toFixed(1)} km/h` : '-'}</span>
-                  <span>{new Date(loc.ts).toLocaleTimeString()}</span>
+                <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+                  <div>
+                    <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-tight">Lat</span>
+                    {loc.lat.toFixed(5)}
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-tight">Lon</span>
+                    {loc.lon.toFixed(5)}
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-[10px] font-bold">
+                  <span className="text-indigo-600">
+                    {typeof loc.speedMps === 'number' ? `${(loc.speedMps * 3.6).toFixed(1)} km/h` : '—'}
+                  </span>
+                  <span className="text-gray-400">
+                    {new Date(loc.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
                 </div>
               </div>
             ))}
-            {locations.length === 0 && <p className="text-center text-gray-400 py-8 text-sm italic">Waiting for data...</p>}
+            {locations.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-3">
+                <div className="w-10 h-10 border-2 border-dashed border-gray-200 rounded-full animate-spin border-t-indigo-500"></div>
+                <p className="text-sm italic">Synchronizing feed...</p>
+              </div>
+            )}
           </div>
+
+          {totalPages > 1 && (
+            <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+              <button
+                disabled={feedPage === 0}
+                onClick={() => setFeedPage(p => p - 1)}
+                className="p-1.5 text-gray-500 hover:text-indigo-600 disabled:opacity-30 transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Page {feedPage + 1} of {totalPages}
+              </span>
+              <button
+                disabled={feedPage >= totalPages - 1}
+                onClick={() => setFeedPage(p => p + 1)}
+                className="p-1.5 text-gray-500 hover:text-indigo-600 disabled:opacity-30 transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

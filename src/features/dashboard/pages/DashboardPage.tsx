@@ -110,7 +110,8 @@ const Dashboard: React.FC = () => {
         let nextError = '';
 
         if (usersRes.status === 'fulfilled') {
-          nextUsers = usersRes.value.data || [];
+          const data = usersRes.value.data;
+          nextUsers = (data as any)?.items || (Array.isArray(data) ? data : []);
         } else {
           nextError = (usersRes.reason as any)?.message || 'Failed to load users.';
         }
