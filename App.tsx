@@ -9,6 +9,7 @@ import UsersPage from '@/features/users/pages/UsersPage';
 import SessionsPage from '@/features/sessions/pages/SessionsPage';
 import SessionDetail from '@/features/sessions/pages/SessionDetailPage';
 import MonitoringPage from '@/features/monitoring/pages/MonitoringPage';
+import AuditLogsPage from '@/features/admin/pages/AuditLogsPage';
 
 const App: React.FC = () => (
   <HashRouter>
@@ -20,6 +21,7 @@ const App: React.FC = () => (
       <Route path="/sessions" element={<ProtectedRoute><SessionsPage /></ProtectedRoute>} />
       <Route path="/sessions/:sessionId" element={<ProtectedRoute><SessionDetail /></ProtectedRoute>} />
       <Route path="/monitoring" element={<ProtectedRoute><MonitoringPage /></ProtectedRoute>} />
+      <Route path="/audit-logs" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   </HashRouter>

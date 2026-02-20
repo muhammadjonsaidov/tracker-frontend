@@ -18,6 +18,14 @@ export interface UserRow {
   createdAt: string;
 }
 
+export interface UserPage {
+  items: UserRow[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
 export interface LastLocationRow {
   userId: string;
   sessionId: string;
@@ -82,4 +90,17 @@ export interface PointRow {
 export interface StreamTokenResponse {
   token: string;
   expiresAt: string;
+}
+
+export interface AuditLogRow {
+  id: number;
+  adminId: string | null;
+  adminUsername: string | null;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  metadata: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
 }

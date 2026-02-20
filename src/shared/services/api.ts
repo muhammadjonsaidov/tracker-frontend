@@ -8,6 +8,8 @@ import {
   SessionSummaryResponse,
   PointRow,
   StreamTokenResponse,
+  AuditLogRow,
+  UserPage,
 } from '@/shared/types';
 
 // Environment configuration
@@ -152,11 +154,29 @@ class ApiClient {
 
   // --- Admin Endpoints ---
 
-  async getUsers(): Promise<ApiResponse<UserRow[]>> {
-    const res = await this.request<any>('/api/v1/admin/users');
-    // Normalize data if it's wrapped awkwardly (e.g. spring data rest styles)
-    const normalized = normalizeArray<UserRow>(res.data);
-    return { ...res, data: normalized };
+  async getUsers(params: { page?: number; size?: number } = {}): Promise<ApiResponse<UserPage>> {
+    const query = new URLSearchParams();
+    if (params.page !== undefined) query.set('page', String(params.page));
+    if (params.size !== undefined) query.set('size', String(params.size));
+
+    const res = await this.request<any>(`/api/v1/admin/users?${query.toString()}`);
+
+    // Normalize data if it's wrapped awkwardly or is still an array (for safety)
+    if (res.data && 'items' in res.data) {
+      return res as ApiResponse<UserPage>;
+    }
+
+    const items = normalizeArray<UserRow>(res.data);
+    return {
+      ...res,
+      data: {
+        items,
+        page: params.page || 0,
+        size: items.length,
+        totalElements: items.length,
+        totalPages: 1
+      }
+    };
   }
 
   async getLastLocations(): Promise<ApiResponse<LastLocationRow[]>> {
@@ -223,6 +243,27 @@ class ApiClient {
 
   async getStreamToken(): Promise<ApiResponse<StreamTokenResponse>> {
     return this.request('/api/v1/admin/stream/token');
+  }
+
+  async getAuditLogs(params: { page?: number; size?: number } = {}): Promise<ApiResponse<{ content: AuditLogRow[]; totalElements: number; totalPages: number }>> {
+    const query = new URLSearchParams();
+    if (params.page !== undefined) query.set('page', String(params.page));
+    if (params.size !== undefined) query.set('size', String(params.size));
+    return this.request(`/api/v1/admin/audit-logs?${query.toString()}`);
+  }
+
+  async updateUserRole(userId: string, role: string): Promise<ApiResponse<void>> {
+    const query = new URLSearchParams();
+    query.set('role', role);
+    return this.request(`/api/v1/admin/users/${userId}/role?${query.toString()}`, {
+      method: 'PUT',
+    });
+  }
+
+  async deleteUser(userId: string): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/admin/users/${userId}`, {
+      method: 'DELETE',
+    });
   }
 
   getSseUrl(streamToken: string): string {

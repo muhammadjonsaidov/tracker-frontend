@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Eye, RefreshCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '@/shared/services/api';
 import { SessionPage } from '@/shared/types';
@@ -9,45 +9,38 @@ const SessionsPage: React.FC = () => {
   const [sessionPage, setSessionPage] = useState<SessionPage | null>(null);
   const [usersById, setUsersById] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [params, setParams] = useState({ page: 0, size: 10 });
+  const [page, setPage] = useState(0);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    let isMounted = true;
-    api.getUsers()
+    api.getUsers({ size: 1000 })
       .then((res) => {
-        if (!isMounted) return;
         const map: Record<string, string> = {};
-        (res.data || []).forEach((user) => {
-          if (user?.id) {
-            map[user.id] = user.username || user.email || user.id;
-          }
+        (res.data.items || []).forEach((user) => {
+          map[user.id] = user.username || user.email || user.id;
         });
         setUsersById(map);
       })
-      .catch(() => {
-        if (isMounted) setUsersById({});
-      });
-    return () => { isMounted = false; };
+      .catch(() => setUsersById({}));
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
+  const fetchSessions = async (pageNum: number) => {
     setLoading(true);
     setError('');
-    api.getSessions(params)
-      .then((res) => {
-        if (!isMounted) return;
-        setSessionPage(res.data);
-        setLoading(false);
-      })
-      .catch((err: any) => {
-        if (!isMounted) return;
-        setError(err?.message || 'Failed to load sessions.');
-        setLoading(false);
-      });
-    return () => { isMounted = false; };
-  }, [params]);
+    try {
+      const res = await api.getSessions({ page: pageNum, size: 10 });
+      setSessionPage(res.data);
+      setPage(pageNum);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load sessions.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSessions(0);
+  }, []);
 
   const sessions = useMemo(() => sessionPage?.items ?? [], [sessionPage]);
 
@@ -60,90 +53,49 @@ const SessionsPage: React.FC = () => {
     }
   };
 
-  if (loading && !sessionPage) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {error && <InlineError message={error} />}
-      <div className="space-y-3 md:hidden">
-        {sessions.map((session) => {
-          const hasPoints = !!session.lastPointAt;
-          const lastPointLabel = hasPoints ? new Date(session.lastPointAt).toLocaleTimeString() : '—';
-          const disableDetails = session.status === 'ACTIVE' && !hasPoints;
-          const userLabel = session.username
-            || (session.userId ? usersById[session.userId] : undefined)
-            || '—';
-          return (
-            <div key={session.sessionId} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-mono text-gray-500">{session.sessionId.slice(0, 13)}...</p>
-                  <p className="text-sm font-semibold text-gray-900">{userLabel}</p>
-                </div>
-                <span className={`px-3 py-1 text-xs font-bold rounded-full ${getStatusColor(session.status)}`}>
-                  {session.status}
-                </span>
-              </div>
-              <div className="mt-3 grid gap-2 text-xs text-gray-600">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <span>Start: {new Date(session.startTime).toLocaleString()}</span>
-                </div>
-                <div>
-                  End: {session.stopTime ? new Date(session.stopTime).toLocaleString() : '—'}
-                </div>
-                <div>
-                  Last Sync: <span className="italic">{lastPointLabel}</span>
-                </div>
-              </div>
-              <div className="mt-4">
-                {disableDetails ? (
-                  <span className="inline-flex items-center gap-2 text-gray-400 text-sm font-semibold">
-                    <Eye className="w-4 h-4" />
-                    Waiting for points
-                  </span>
-                ) : (
-                  <Link
-                    to={`/sessions/${session.sessionId}`}
-                    className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-semibold text-sm transition-all"
-                  >
-                    <Eye className="w-4 h-4" />
-                    View Details
-                  </Link>
-                )}
-              </div>
-            </div>
-          );
-        })}
-        {sessions.length === 0 && (
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 text-center text-sm text-gray-500">
-            No sessions found.
-          </div>
-        )}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Tracking Sessions</h2>
+          <p className="text-sm text-gray-500">View and analyze user tracking sessions.</p>
+        </div>
+        <button
+          onClick={() => fetchSessions(page)}
+          className="flex items-center justify-center gap-2 px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+        >
+          <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
 
-      <div className="hidden md:block bg-white rounded-2xl border border-gray-100 shadow-sm">
+      {error && <InlineError message={error} />}
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-[900px] w-full text-left border-collapse">
+          <table className="min-w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">Session ID</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">User</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">Start Time</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">End Time</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">Last Sync</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider"></th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Session ID</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">User</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Start Time</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">End Time</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Last Sync</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {sessions.map((session) => {
+              {loading && sessions.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <RefreshCcw className="w-8 h-8 animate-spin" />
+                      <p>Loading sessions...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : sessions.map((session) => {
                 const hasPoints = !!session.lastPointAt;
                 const lastPointLabel = hasPoints ? new Date(session.lastPointAt).toLocaleTimeString() : '—';
                 const disableDetails = session.status === 'ACTIVE' && !hasPoints;
@@ -156,12 +108,12 @@ const SessionsPage: React.FC = () => {
                       {session.sessionId.slice(0, 13)}...
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-700">
+                      <div className="text-sm font-medium text-gray-900">
                         {userLabel}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-800">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Calendar className="w-4 h-4 text-gray-400" />
                         {new Date(session.startTime).toLocaleString()}
                       </div>
@@ -172,63 +124,64 @@ const SessionsPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-3 py-1 text-xs font-bold rounded-full ${getStatusColor(session.status)}`}>
+                      <span className={`px-2.5 py-1 text-xs font-bold rounded-lg uppercase ${getStatusColor(session.status)}`}>
                         {session.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-400 italic">
                       {lastPointLabel}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4">
                       {disableDetails ? (
-                        <span className="inline-flex items-center gap-2 text-gray-400 text-sm font-semibold">
+                        <span className="flex items-center gap-2 text-gray-400 text-xs font-medium">
                           <Eye className="w-4 h-4" />
-                          Waiting for points
+                          Waiting
                         </span>
                       ) : (
                         <Link
                           to={`/sessions/${session.sessionId}`}
-                          className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-semibold text-sm transition-all"
+                          className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-bold text-sm transition-all"
                         >
                           <Eye className="w-4 h-4" />
-                          View Details
+                          View
                         </Link>
                       )}
                     </td>
                   </tr>
                 );
               })}
+              {!loading && sessions.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    No sessions found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-        {sessions.length === 0 && (
-          <div className="py-12 text-center">
-            <p className="text-gray-500 font-medium">No sessions found.</p>
+
+        {sessionPage && sessionPage.totalPages > 1 && (
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+            <button
+              disabled={page === 0 || loading}
+              onClick={() => fetchSessions(page - 1)}
+              className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition-all"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-gray-500">
+              Page {page + 1} of {sessionPage.totalPages}
+            </span>
+            <button
+              disabled={page >= sessionPage.totalPages - 1 || loading}
+              onClick={() => fetchSessions(page + 1)}
+              className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition-all"
+            >
+              Next
+            </button>
           </div>
         )}
-      </div>
-
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <p className="text-sm text-gray-500">
-          Showing <span className="font-bold">{sessions.length}</span> of <span className="font-bold">{sessionPage?.totalElements || 0}</span> sessions
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            disabled={params.page === 0}
-            onClick={() => setParams((p) => ({ ...p, page: p.page - 1 }))}
-            className="p-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 transition-all"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <span className="text-sm font-bold text-gray-700">Page {params.page + 1} of {sessionPage?.totalPages || 1}</span>
-          <button
-            disabled={params.page >= (sessionPage?.totalPages || 1) - 1}
-            onClick={() => setParams((p) => ({ ...p, page: p.page + 1 }))}
-            className="p-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 transition-all"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -1,33 +1,99 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, MoreVertical, Filter, UserPlus } from 'lucide-react';
+import { Search, Shield, Trash2, RefreshCcw } from 'lucide-react';
 import { api } from '@/shared/services/api';
 import { UserRow } from '@/shared/types';
 import InlineError from '@/shared/components/InlineError';
+import ConfirmModal from '@/shared/components/ConfirmModal';
 
 const UsersPage: React.FC = () => {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'danger' | 'info' | 'warning';
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: () => { },
+  });
+
+  const fetchUsers = async (pageNum: number) => {
     setLoading(true);
     setError('');
-    api.getUsers()
-      .then((res) => {
-        if (!isMounted) return;
-        setUsers(res.data || []);
-        setLoading(false);
-      })
-      .catch((err: any) => {
-        if (!isMounted) return;
-        setError(err?.message || 'Failed to load users.');
-        setLoading(false);
-      });
-    return () => { isMounted = false; };
+    try {
+      const res = await api.getUsers({ page: pageNum, size: 10 });
+      const data = res.data;
+      setUsers(data.items || []);
+      setTotalPages(data.totalPages || 0);
+      setTotalElements(data.totalElements || 0);
+      setPage(pageNum);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load users.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers(0);
   }, []);
 
+  const handleDelete = (userId: string, username: string) => {
+    setModalConfig({
+      isOpen: true,
+      title: 'Delete User',
+      message: `Are you sure you want to delete user "${username}"? This action cannot be undone and will remove all associated data.`,
+      type: 'danger',
+      onConfirm: async () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        setActionLoading(userId);
+        try {
+          await api.deleteUser(userId);
+          fetchUsers(page); // Refresh current page
+        } catch (err: any) {
+          setError(err.message || 'Failed to delete user');
+        } finally {
+          setActionLoading(null);
+        }
+      }
+    });
+  };
+
+  const handleToggleRole = (user: UserRow) => {
+    const newRole = user.role === 'ADMIN' ? 'USER' : 'ADMIN';
+    setModalConfig({
+      isOpen: true,
+      title: 'Update User Role',
+      message: `Change role for ${user.username} to ${newRole}?`,
+      type: 'info',
+      onConfirm: async () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        setActionLoading(user.id);
+        try {
+          await api.updateUserRole(user.id, newRole);
+          fetchUsers(page); // Refresh current page
+        } catch (err: any) {
+          setError(err.message || 'Failed to update role');
+        } finally {
+          setActionLoading(null);
+        }
+      }
+    });
+  };
+
+  // Client-side search for the current page content (server-side search could be added later if needed)
   const filteredUsers = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return users;
@@ -37,87 +103,81 @@ const UsersPage: React.FC = () => {
     );
   }, [users, search]);
 
-  if (loading) {
-    return (
-      <div className="animate-pulse space-y-4">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-16 bg-white rounded-xl"></div>
-        ))}
-      </div>
-    );
-  }
+  const UserActions = ({ user }: { user: UserRow }) => (
+    <div className="flex items-center gap-1">
+      <button
+        disabled={!!actionLoading}
+        onClick={() => handleToggleRole(user)}
+        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+        title="Toggle Role"
+      >
+        <Shield className="w-4 h-4" />
+      </button>
+      <button
+        disabled={!!actionLoading}
+        onClick={() => handleDelete(user.id, user.username)}
+        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+        title="Delete User"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
-      {error && <InlineError message={error} />}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="relative flex-1 w-full md:max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Search users by name or email..."
-            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Users</h2>
+          <p className="text-sm text-gray-500">Manage system users and their permissions.</p>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-          <button className="flex items-center justify-center gap-2 px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">
-            <Filter className="w-4 h-4" />
-            Filters
-          </button>
-          <button className="flex items-center justify-center gap-2 px-4 py-2 text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all">
-            <UserPlus className="w-4 h-4" />
-            Add User
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => fetchUsers(page)}
+            className="flex items-center justify-center gap-2 px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+          >
+            <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
           </button>
         </div>
       </div>
 
-      <div className="space-y-3 md:hidden">
-        {filteredUsers.map((user) => (
-          <div key={user.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <img src={`https://picsum.photos/seed/${user.id}/40/40`} className="w-10 h-10 rounded-full border border-gray-100" />
-                <div>
-                  <p className="font-bold text-gray-900">{user.username}</p>
-                  <p className="text-xs text-gray-500">{user.email}</p>
-                </div>
-              </div>
-              <button className="p-2 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100">
-                <MoreVertical className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-              <span className="px-3 py-1 bg-green-100 text-green-700 font-bold rounded-full uppercase">Active</span>
-              <span className={`px-3 py-1 font-bold rounded-full uppercase ${user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                {user.role}
-              </span>
-              <span className="text-gray-500">Joined {new Date(user.createdAt).toLocaleDateString()}</span>
-            </div>
-          </div>
-        ))}
-        {filteredUsers.length === 0 && (
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 text-center text-sm text-gray-500">
-            No users found matching your criteria.
-          </div>
-        )}
+      <div className="relative flex-1 w-full md:max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <input
+          type="text"
+          placeholder="Filter current page..."
+          className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
-      <div className="hidden md:block bg-white rounded-2xl border border-gray-100 shadow-sm">
+      {error && <InlineError message={error} />}
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-[900px] w-full text-left border-collapse">
+          <table className="min-w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">User</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">Role</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">Joined At</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider"></th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">User</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Joined At</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredUsers.map((user) => (
+              {loading && users.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <RefreshCcw className="w-8 h-8 animate-spin" />
+                      <p>Loading users...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -136,25 +196,57 @@ const UsersPage: React.FC = () => {
                       {user.role}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
+                  <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="p-2 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100">
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
+                  <td className="px-6 py-4">
+                    <UserActions user={user} />
                   </td>
                 </tr>
               ))}
+              {!loading && filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                    No users found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-        {filteredUsers.length === 0 && (
-          <div className="py-12 text-center">
-            <p className="text-gray-500 font-medium">No users found matching your criteria.</p>
+
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+            <button
+              disabled={page === 0 || loading}
+              onClick={() => fetchUsers(page - 1)}
+              className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition-all"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-gray-500">
+              Page {page + 1} of {totalPages}
+            </span>
+            <button
+              disabled={page >= totalPages - 1 || loading}
+              onClick={() => fetchUsers(page + 1)}
+              className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition-all"
+            >
+              Next
+            </button>
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={modalConfig.isOpen}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        onConfirm={modalConfig.onConfirm}
+        onCancel={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+        loading={!!actionLoading}
+      />
     </div>
   );
 };

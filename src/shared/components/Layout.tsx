@@ -21,6 +21,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { name: 'Users', icon: Users, path: '/users' },
     { name: 'Sessions', icon: History, path: '/sessions' },
     { name: 'Monitoring', icon: Activity, path: '/monitoring' },
+    { name: 'Audit Logs', icon: ShieldCheck, path: '/audit-logs' },
   ];
 
   return (
@@ -62,8 +63,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive(item.path)
-                    ? 'bg-indigo-50 text-indigo-600 font-semibold'
-                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                  ? 'bg-indigo-50 text-indigo-600 font-semibold'
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
                   }`}
               >
                 <Icon className="w-5 h-5" />
